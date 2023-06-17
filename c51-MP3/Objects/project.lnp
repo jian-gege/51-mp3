@@ -1,0 +1,14 @@
+".\Objects\main.obj",
+".\Objects\STC8A_GPIO.obj",
+".\Objects\sd.obj",
+".\Objects\STC8A_NVIC.obj",
+".\Objects\STC8A_SPI.obj",
+".\Objects\STC8A_SPI_Isr.obj",
+".\Objects\znFAT.obj",
+".\Objects\deviceio.obj",
+".\Objects\1003b.obj",
+".\Objects\oled.obj",
+".\Objects\EEPROM.obj" 
+TO ".\Objects\project" 
+PRINT(".\Listings\project.m51") RAMSIZE(256) 
+DISABLEWARNING (16) 

@@ -1,0 +1,314 @@
+C51 COMPILER V9.60.0.0   MAIN                                                              06/16/2023 03:00:29 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: D:\Keil_v5\C51\BIN\C51.EXE main.c LARGE OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listing
+                    -s\main.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include "STC8A_GPIO.h"
+   2          #include "config.h"
+   3          #include "sd.h"
+   4          #include  "STC8A_NVIC.h"
+   5          #include  "STC8A_Switch.h"
+   6          #include  "STC8A_SPI.h"
+   7          #include  "znfat.h"
+   8          #include  "1003b.h"
+   9          #include "oled.h"
+  10          #include "bmp.h"
+  11          
+  12          
+  13          sbit  KEY_dowm = P0^2;//上一首
+  14          sbit  KEY_up = P0^3; // 下一首
+  15          sbit  KEY_stop = P0^4;//暂停
+  16          sbit  KEY_vol_up = P0^1; // 声音调大
+  17          sbit  KEY_vol_down= P0^5;//声音调小
+  18          
+  19          
+  20          unsigned int i=0,j=0;
+  21          unsigned int res;//文件操作函数的返回值
+  22          unsigned int len = 0;//从文件中读取的数据长度
+  23          char n=2;//枚举文件用的文件编号
+  24          unsigned char vol_num=0x55;
+  25          struct znFAT_Init_Args Init_Args;  //文件初始化参数集合
+  26          struct FileInfo fileinfo;//文件信息集合
+  27          unsigned char buf[320];//应用数据缓冲区
+  28          //              unsigned int data_pointer;
+  29          //              unsigned char i;
+  30          //              unsigned int uiCount;
+  31          unsigned char sign=0;         
+  32                        
+  33          void Delay1000ms()    //@12.000MHz
+  34          {
+  35   1        unsigned char i, j, k;
+  36   1      
+  37   1        _nop_();
+  38   1        _nop_();
+  39   1        i = 61;
+  40   1        j = 225;
+  41   1        k = 62;
+  42   1        do
+  43   1        {
+  44   2          do
+  45   2          {
+  46   3            while (--k);
+  47   3          } while (--j);
+  48   2        } while (--i);
+  49   1      }
+  50          
+  51          void Delay10us()    //@12.000MHz
+  52          {
+  53   1        unsigned char i;
+  54   1      
+C51 COMPILER V9.60.0.0   MAIN                                                              06/16/2023 03:00:29 PAGE 2   
+
+  55   1        i = 38;
+  56   1        while (--i);
+  57   1      }
+  58          
+  59          void Delay50ms()    //@12.000MHz
+  60          {
+  61   1        unsigned char i, j, k;
+  62   1      
+  63   1        _nop_();
+  64   1        _nop_();
+  65   1        i = 4;
+  66   1        j = 12;
+  67   1        k = 50;
+  68   1        do
+  69   1        {
+  70   2          do
+  71   2          {
+  72   3            while (--k);
+  73   3          } while (--j);
+  74   2        } while (--i);
+  75   1      }
+  76          
+  77          
+  78          
+  79          void  GPIO_config(void)
+  80          {
+  81   1        P1_MODE_IO_PU(GPIO_Pin_1| GPIO_Pin_2| GPIO_Pin_3 | GPIO_Pin_4| GPIO_Pin_5);   //P1.0~P1.7 设置为准双向口
+  82   1        P2_MODE_IO_PU(GPIO_Pin_0| GPIO_Pin_1| GPIO_Pin_2| GPIO_Pin_3 | GPIO_Pin_4| GPIO_Pin_5);
+  83   1        P3_MODE_IO_PU(GPIO_Pin_2| GPIO_Pin_3| GPIO_Pin_5);  //P3.0~P3.7 设置为准双向口
+  84   1        P0_MODE_IO_PU(GPIO_Pin_1 | GPIO_Pin_2| GPIO_Pin_3 | GPIO_Pin_4| GPIO_Pin_5);
+  85   1      }
+  86          /***********************************************************************************/
+  87          
+  88          void  SPI_config(void)   //低速spi，初始化sd卡使用
+  89          {
+  90   1        SPI_InitTypeDef   SPI_InitStructure;
+  91   1        SPI_InitStructure.SPI_Enable    = ENABLE;           //SPI启动    ENABLE, DISABLE
+  92   1        SPI_InitStructure.SPI_SSIG      = ENABLE;           //片选位     ENABLE, DISABLE
+  93   1        SPI_InitStructure.SPI_FirstBit  = SPI_MSB;          //移位方向   SPI_MSB, SPI_LSB
+  94   1        SPI_InitStructure.SPI_Mode      = SPI_Mode_Slave;   //主从选择   SPI_Mode_Master, SPI_Mode_Slave
+  95   1        SPI_InitStructure.SPI_CPOL      = SPI_CPOL_Low;     //时钟相位   SPI_CPOL_High,   SPI_CPOL_Low
+  96   1        SPI_InitStructure.SPI_CPHA      = SPI_CPHA_1Edge;   //数据边沿   SPI_CPHA_1Edge,  SPI_CPHA_2Edge
+  97   1        SPI_InitStructure.SPI_Speed     = SPI_Speed_64;     //SPI速度    SPI_Speed_4, SPI_Speed_16, SPI_Speed_64, S
+             -PI_Speed_128
+  98   1        SPI_Init(&SPI_InitStructure);
+  99   1        NVIC_SPI_Init(ENABLE,Priority_3);   //中断使能, ENABLE/DISABLE; 优先级(低到高) Priority_0,Priority_1,Prior
+             -ity_2,Priority_3
+ 100   1        
+ 101   1        SPI_SW(SPI_P22_P23_P24_P25);  //SPI_P12_P13_P14_P15,SPI_P22_P23_P24_P25,SPI_P74_P75_P76_P77,SPI_P35_P34_P3
+             -3_P32
+ 102   1        SD_CS = 1;//1_2
+ 103   1      }
+ 104          
+ 105          void  SPI_config2(void)  //从sd卡取数据
+ 106          {
+ 107   1        SPI_InitTypeDef   SPI_InitStructure;
+ 108   1        SPI_InitStructure.SPI_Enable    = ENABLE;           //SPI启动    ENABLE, DISABLE
+ 109   1        SPI_InitStructure.SPI_SSIG      = ENABLE;           //片选位     ENABLE, DISABLE
+ 110   1        SPI_InitStructure.SPI_FirstBit  = SPI_MSB;          //移位方向   SPI_MSB, SPI_LSB
+ 111   1        SPI_InitStructure.SPI_Mode      = SPI_Mode_Slave;   //主从选择   SPI_Mode_Master, SPI_Mode_Slave
+ 112   1        SPI_InitStructure.SPI_CPOL      = SPI_CPOL_Low;     //时钟相位   SPI_CPOL_High,   SPI_CPOL_Low
+ 113   1        SPI_InitStructure.SPI_CPHA      = SPI_CPHA_1Edge;   //数据边沿   SPI_CPHA_1Edge,  SPI_CPHA_2Edge
+C51 COMPILER V9.60.0.0   MAIN                                                              06/16/2023 03:00:29 PAGE 3   
+
+ 114   1        SPI_InitStructure.SPI_Speed     = SPI_Speed_2;      //SPI速度    SPI_Speed_4, SPI_Speed_16, SPI_Speed_64, SP
+             -I_Speed_128
+ 115   1        SPI_Init(&SPI_InitStructure);
+ 116   1        NVIC_SPI_Init(ENABLE,Priority_3);   //中断使能, ENABLE/DISABLE; 优先级(低到高) Priority_0,Priority_1,Prior
+             -ity_2,Priority_3
+ 117   1        
+ 118   1        SPI_SW(SPI_P22_P23_P24_P25);  //SPI_P12_P13_P14_P15,SPI_P22_P23_P24_P25,SPI_P74_P75_P76_P77,SPI_P35_P34_P3
+             -3_P32
+ 119   1        SD_CS = 1;//1_2
+ 120   1      }
+ 121          
+ 122          void  SPI_config3(void)   //数据写入vs1003
+ 123          {
+ 124   1        SPI_InitTypeDef   SPI_InitStructure;
+ 125   1        SPI_InitStructure.SPI_Enable    = ENABLE;           //SPI启动    ENABLE, DISABLE
+ 126   1        SPI_InitStructure.SPI_SSIG      = ENABLE;           //片选位     ENABLE, DISABLE
+ 127   1        SPI_InitStructure.SPI_FirstBit  = SPI_MSB;          //移位方向   SPI_MSB, SPI_LSB
+ 128   1        SPI_InitStructure.SPI_Mode      = SPI_Mode_Slave;   //主从选择   SPI_Mode_Master, SPI_Mode_Slave
+ 129   1        SPI_InitStructure.SPI_CPOL      = SPI_CPOL_Low;     //时钟相位   SPI_CPOL_High,   SPI_CPOL_Low
+ 130   1        SPI_InitStructure.SPI_CPHA      = SPI_CPHA_1Edge;   //数据边沿   SPI_CPHA_1Edge,  SPI_CPHA_2Edge
+ 131   1        SPI_InitStructure.SPI_Speed     = SPI_Speed_4;      //SPI速度    SPI_Speed_4, SPI_Speed_16, SPI_Speed_64, SP
+             -I_Speed_128
+ 132   1        SPI_Init(&SPI_InitStructure);
+ 133   1        NVIC_SPI_Init(ENABLE,Priority_3);   //中断使能, ENABLE/DISABLE; 优先级(低到高) Priority_0,Priority_1,Prior
+             -ity_2,Priority_3
+ 134   1        
+ 135   1        SPI_SW(SPI_P12_P13_P14_P15);  //SPI_P12_P13_P14_P15,SPI_P22_P23_P24_P25,SPI_P74_P75_P76_P77,SPI_P35_P34_P3
+             -3_P32
+ 136   1        c_SPI_SO = 1;
+ 137   1        MP3_DREQ = 1;
+ 138   1      }
+ 139          /***********************************************************************************/
+ 140          
+ 141          
+ 142          void main()
+ 143          {
+ 144   1        n = EEPROM_Read(0);
+ 145   1        GPIO_config();//io口初始化
+ 146   1        SPI_config();//spi初始化
+ 147   1        EA=1;   // 打开中断使能，硬件spi需要用到
+ 148   1        SPI_SetMode(SPI_Mode_Master);   //硬件spi主从模式选择
+ 149   1        SD_Ready_Go();  //sd卡初始化
+ 150   1      
+ 151   1        OLED_Init();  //oled 初始化 
+ 152   1        OLED_Clear(); //清屏
+ 153   1      
+ 154   1        znFAT_Device_Init(); // znfat驱动初始化（多台设备有用）
+ 155   1        znFAT_Select_Device(0,&Init_Args);//选择设备
+ 156   1      
+ 157   1        res=znFAT_Init();  //把获取到的文件信息放入res结构体中，方便随时使用
+ 158   1            SPI_config3();
+ 159   1            SPI_SetMode(SPI_Mode_Master);
+ 160   1          
+ 161   1        //Mp3Reset();   //vs1003b硬件复位
+ 162   1        Mp3SoftReset();
+ 163   1         //VS1003B_Init();
+ 164   1            SPI_config2();
+ 165   1            SPI_SetMode(SPI_Mode_Master);   //硬件spi主从模式选择
+ 166   1        
+ 167   1        while(1)
+ 168   1        {
+ 169   2        
+C51 COMPILER V9.60.0.0   MAIN                                                              06/16/2023 03:00:29 PAGE 4   
+
+ 170   2        while(!znFAT_Open_File(&fileinfo,"/*.mp3",n++,1))  //打开MP3文件，枚举加一
+ 171   2        {
+ 172   3          
+ 173   3              OLED_Clear();
+ 174   3              OLED_ShowCHinese(4,0,0);//正
+ 175   3              OLED_ShowCHinese(24,0,1);//在
+ 176   3              OLED_ShowCHinese(44,0,2);//播
+ 177   3              OLED_ShowCHinese(64,0,3);//放
+ 178   3              OLED_ShowCHinese(84,0,9);//中
+ 179   3              OLED_ShowCHinese(104,0,4);//:
+ 180   3              OLED_ShowCHinese(24,3,5);//地
+ 181   3              OLED_ShowCHinese(74,3,6);//首
+ 182   3              OLED_ShowNum(44,3,n,3,16);
+ 183   3              OLED_ShowCHinese(4,6,10);//当前音量
+ 184   3              OLED_ShowCHinese(24,6,11);
+ 185   3              OLED_ShowCHinese(44,6,12);
+ 186   3              OLED_ShowCHinese(64,6,13);
+ 187   3              OLED_ShowCHinese(84,6,4);//:
+ 188   3          OLED_ShowNum(94,6,100-vol_num*100/157 ,3,16);
+ 189   3          while(len=znFAT_ReadData(&fileinfo,fileinfo.File_CurOffset,320,buf)) //读储存卡的数据 
+ 190   3          {
+ 191   4      
+ 192   4            SPI_config3();
+ 193   4             SPI_SetMode(SPI_Mode_Master);
+ 194   4      
+ 195   4                  MP3_XDCS = 0; //vs1003b使能
+ 196   4                  len/=32;
+ 197   4                  for(i=0;i<len;i++)
+ 198   4                  {
+ 199   5                      MP3_DREQ=1;               //不可以写入数据，数据读取暂停
+ 200   5                      while(! MP3_DREQ);        //可以写入数据
+ 201   5                      for(j=0;j<32;j++)
+ 202   5                      {SPIPutChar(buf[i*32+j]);}        //数据循环写给vs1003b
+ 203   5                  }
+ 204   4                  MP3_XDCS=1;     //使能关
+ 205   4      
+ 206   4        
+ 207   4      
+ 208   4      
+ 209   4              
+ 210   4            
+ 211   4            if(KEY_vol_up==0){Delay50ms();if(vol_num>=0x4)vol_num-=0x2; Mp3SetVolume1(vol_num); OLED_ShowNum(94,6,1
+             -00-vol_num*100/157 ,3,16);}   
+ 212   4            if(KEY_vol_down==0){Delay50ms();if(vol_num<=0x99)vol_num+=0x2; Mp3SetVolume1(vol_num);  OLED_ShowNum(94,
+             -6,100-vol_num*100/157 ,3,16);}  
+ 213   4            KEY_dowm = 1;        //按键判断写进循环内可随时判断是否切歌  
+ 214   4                  
+ 215   4                  
+ 216   4                  
+ 217   4                  
+ 218   4                  
+ 219   4            SPI_config2();
+ 220   4            SPI_SetMode(SPI_Mode_Master); 
+ 221   4            if(KEY_dowm==0){Delay50ms();if(KEY_dowm==0){if(n>2)n-=2;else n=0; EEPROM_Delete(0); EEPROM_Change(0, n)
+             -; break;}} //前一首
+ 222   4            KEY_up = 1;
+ 223   4            if(KEY_up==0){Delay50ms();if(KEY_up==0){Delay50ms();if(KEY_up==0){EEPROM_Delete(0); EEPROM_Change(0, n)
+             -; break;}}}//后一首
+ 224   4      
+ 225   4                    
+ 226   4                    if(KEY_stop==0)
+ 227   4                    {
+C51 COMPILER V9.60.0.0   MAIN                                                              06/16/2023 03:00:29 PAGE 5   
+
+ 228   5                      Delay50ms();
+ 229   5                      if(KEY_stop==1)
+ 230   5                      {
+ 231   6                        OLED_Clear_12(); 
+ 232   6                        OLED_ShowCHinese(44,0,7);//暂停中
+ 233   6                        OLED_ShowCHinese(64,0,8);//
+ 234   6                        OLED_ShowCHinese(84,0,9);//
+ 235   6                        while(1)
+ 236   6                        {
+ 237   7                          if(KEY_stop==0){Delay50ms(); if(KEY_stop==1)break;}
+ 238   7                          if(KEY_dowm==0){Delay50ms();if(KEY_dowm==1){sign=1;break;}} //前一首
+ 239   7                          if(KEY_up==0){Delay50ms();if(KEY_up==1){sign=2;break;}}//后一首
+ 240   7                        }
+ 241   6                        if(sign==1){sign=0;if(n>2)n-=2;else n=0;  EEPROM_Delete(0); EEPROM_Change(0, n); break; }
+ 242   6                        if(sign==2){sign=0;  EEPROM_Delete(0); EEPROM_Change(0, n); break; }
+ 243   6                        Delay50ms();
+ 244   6                        OLED_Clear_12();
+ 245   6                        OLED_ShowCHinese(4,0,0);//正
+ 246   6                        OLED_ShowCHinese(24,0,1);//在
+ 247   6                        OLED_ShowCHinese(44,0,2);//播
+ 248   6                        OLED_ShowCHinese(64,0,3);//放
+ 249   6                        OLED_ShowCHinese(84,0,9);//中
+ 250   6                        OLED_ShowCHinese(104,0,4);//:           
+ 251   6                      }
+ 252   5                    }
+ 253   4                        //暂停
+ 254   4              
+ 255   4      
+ 256   4            
+ 257   4          }
+ 258   3        }
+ 259   2      
+ 260   2        n-=2;
+ 261   2        EEPROM_Delete(0);
+ 262   2        EEPROM_Change(0, n);
+ 263   2      }
+ 264   1        
+ 265   1        
+ 266   1      
+ 267   1        
+ 268   1      
+ 269   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1204    ----
+   CONSTANT SIZE    =      9    ----
+   XDATA SIZE       =    431      21
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

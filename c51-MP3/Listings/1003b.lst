@@ -1,0 +1,731 @@
+C51 COMPILER V9.60.0.0   1003B                                                             06/16/2023 01:03:55 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE 1003B
+OBJECT MODULE PLACED IN .\Objects\1003b.obj
+COMPILER INVOKED BY: D:\Keil_v5\C51\BIN\C51.EXE 1003b.c LARGE OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listin
+                    -gs\1003b.lst) TABS(2) OBJECT(.\Objects\1003b.obj)
+
+line level    source
+
+   1          #include "1003b.h"
+   2          #include <intrins.h>
+   3          #include "SD.h"
+   4          #include "string.h"
+   5          #include  "STC8A_SPI.h"
+*** WARNING C317 IN LINE 65 OF type_def.h: attempt to redefine macro 'NULL'
+   6          
+   7          
+   8          
+   9          #define uchar unsigned char
+  10          #define uint unsigned int
+  11          #define ulong unsigned long
+  12          #define bool bit
+  13          #define true 1
+  14          #define flase 0
+  15          
+  16          
+  17          
+  18          #define Macro_Set_SI_High()   c_SPI_SI = 1
+  19          #define Macro_Set_SI_Low()    c_SPI_SI = 0
+  20          #define Macro_Set_CLK_High()    c_SPI_CLK = 1
+  21          #define Macro_Set_CLK_Low()   c_SPI_CLK = 0
+  22          
+  23          
+  24          
+  25          
+  26          void wait(uchar ucDelayCount)
+  27          {
+  28   1        uchar ucTempCount;
+  29   1        uchar uci;
+  30   1      
+  31   1        for(ucTempCount=0; ucTempCount<ucDelayCount; ucTempCount++)
+  32   1        {
+  33   2      //    uci = 200;  //Err
+  34   2      //    uci = 250;  //OK
+  35   2          uci = 230;
+  36   2          while(uci--)
+  37   2          {
+  38   3            _nop_();
+  39   3            }
+  40   2        }
+  41   1      }
+  42          
+  43          //#define wait(x) Delay(x)
+  44          /**********************************************************/
+  45          /*  函数名称 :   MSPI_Init                                */
+  46          /*  函数功能 ： 初始化SPI接口，设置为主机。               */
+  47          /*  参数     :  无                                        */
+  48          /*  返回值   :  无                                        */
+  49          /*--------------------------------------------------------*/
+  50          void  MSPI_Init(void)
+  51          {  
+  52   1      /*
+  53   1        PINSEL0 = (PINSEL0 & 0xFFFF00FF) | 0x00005500;  //选择 SPI 
+C51 COMPILER V9.60.0.0   1003B                                                             06/16/2023 01:03:55 PAGE 2   
+
+  54   1              S0SPCCR = 0x08;                           // SPI 时钟设置
+  55   1        S0SPCR  = (0 << 3) |        // CPHA = 0, 
+  56   1            (0 << 4) |        // CPOL = 0, 
+  57   1            (1 << 5) |        // MSTR = 1, 
+  58   1            (0 << 6) |        // LSBF = 0, 
+  59   1                  (0 << 7);       // SPIE = 0, 
+  60   1      */
+  61   1        c_SPI_SO = 1;
+  62   1        MP3_DREQ = 1;
+  63   1      
+  64   1      }
+  65          
+  66          /**********************************************************/
+  67          /*  函数名称 :  InitPortVS1003                            */
+  68          /*  函数功能 ： MCU与vs1003接口的初始化                   */
+  69          /*  参数     :  无                                        */
+  70          /*  返回值   :  无                                        */
+  71          /*--------------------------------------------------------*/
+  72          void  InitPortVS1003(void)
+  73          {
+  74   1        MSPI_Init();//SPI口的初始化
+  75   1      //  IODIR &= 0xfffeffff;   //其他接口线的设置，其中dreq 为输入口
+  76   1      //  IODIR |= MP3_XRESET | MP3_XCS | MP3_XDCS;//xRESET，xCS，xDS均为输出口
+  77   1      //  IOSET |= MP3_XRESET | MP3_XCS | MP3_XDCS;//xRESET，xCS，xDS默认输出高电平 
+  78   1        MP3_DREQ = 1;   //置为输入
+  79   1      
+  80   1        MP3_XRESET = 1;
+  81   1        MP3_XCS = 1;
+  82   1        MP3_XDCS = 1;
+  83   1      }
+  84          
+  85          //uint8 SD_SPI_ReadByte(void);
+  86          //void SD_SPI_WriteByte(uint8 ucSendData);
+  87          
+  88          //#define SPI_RecByte()  SD_SPI_ReadByte()
+  89          //#define SPIPutChar(x) SD_SPI_WriteByte(x)
+  90          
+  91          #if 1
+  92          /**********************************************************/
+  93          /*  函数名称 :  SPIPutChar                                */
+  94          /*  函数功能 ： 通过SPI发送一个字节的数据                 */
+  95          /*  参数     :  待发送的字节数据                          */
+  96          /*  返回值   :  无                                        */
+  97          /*--------------------------------------------------------*/
+  98          void  SPIPutChar(unsigned char ucSendData)
+  99          {      
+ 100   1          SPI_WriteByte(ucSendData);
+ 101   1      
+ 102   1      
+ 103   1      //  uchar ucCount;
+ 104   1      //  uchar ucMaskCode;
+ 105   1      
+ 106   1      //  ucMaskCode = 0x80;
+ 107   1      //  for(ucCount=0; ucCount<8; ucCount++)
+ 108   1      //  {
+ 109   1      //    Macro_Set_CLK_Low();
+ 110   1      
+ 111   1      //    if(ucMaskCode & ucSendData)
+ 112   1      //    {
+ 113   1      //      Macro_Set_SI_High();
+ 114   1      //    }
+ 115   1      //    else
+C51 COMPILER V9.60.0.0   1003B                                                             06/16/2023 01:03:55 PAGE 3   
+
+ 116   1      //    {
+ 117   1      //      Macro_Set_SI_Low();
+ 118   1      //    }
+ 119   1      
+ 120   1      //    Macro_Set_CLK_High();
+ 121   1      //    ucMaskCode >>= 1;
+ 122   1      
+ 123   1      //  }
+ 124   1      }
+ 125          
+ 126          /*********************************************************************************************************
+             -**********
+ 127          ** 函数名称: INT8U SPI_RecByte()        Name:   INT8U SPI_RecByte()
+ 128          ** 功能描述: 从SPI接口接收一个字节        Function: receive a byte from SPI interface
+ 129          ** 输　  入: 无                 Input:    NULL
+ 130          ** 输 　 出: 收到的字节             Output:   the byte that be received
+ 131          **********************************************************************************************************
+             -**********/
+ 132          static uchar SPI_RecByte(void)
+ 133          {
+ 134   1      //  uchar ucReadData;
+ 135   1      //  uchar ucCount;
+ 136   1      
+ 137   1      //  ucReadData = 0;
+ 138   1      //  Macro_Set_SI_High();
+ 139   1      
+ 140   1      //  for(ucCount=0; ucCount<8; ucCount++)
+ 141   1      //  {
+ 142   1      //    ucReadData <<= 1;
+ 143   1      //      //降低时钟频率
+ 144   1      //    Macro_Set_CLK_Low();
+ 145   1      
+ 146   1      //  
+ 147   1      //    if(c_SPI_SO)
+ 148   1      //    {
+ 149   1      //      ucReadData |= 0x01;
+ 150   1      //    }
+ 151   1      //    Macro_Set_CLK_High();
+ 152   1      
+ 153   1      //  }
+ 154   1      
+ 155   1      //  return(ucReadData);
+ 156   1          return (SPI_ReadByte());
+ 157   1      }
+ 158          
+ 159          #endif
+ 160          
+ 161          /*************************************************************/
+ 162          /*  函数名称 :  Mp3WriteRegister                             */
+ 163          /*  函数功能 ： 写vs1003寄存器                               */
+ 164          /*  参数     :  寄存器地址，待写数据的高8位，待写数据的低8位 */
+ 165          /*  返回值   :  无                                           */
+ 166          /*-----------------------------------------------------------*/
+ 167          void Mp3WriteRegister(unsigned char addressbyte, unsigned char highbyte, unsigned char lowbyte)
+ 168          {
+ 169   1        Mp3DeselectData();
+ 170   1        Mp3SelectControl();//XCS = 0
+ 171   1        SPIPutChar(VS_WRITE_COMMAND); //发送写寄存器命令
+ 172   1        SPIPutChar(addressbyte);      //发送寄存器的地址
+ 173   1        SPIPutChar(highbyte);         //发送待写数据的高8位
+ 174   1        SPIPutChar(lowbyte);          //发送待写数据的低8位
+ 175   1        Mp3DeselectControl();
+C51 COMPILER V9.60.0.0   1003B                                                             06/16/2023 01:03:55 PAGE 4   
+
+ 176   1      }
+ 177          
+ 178          /*************************************************************/
+ 179          /*  函数名称 :  Mp3ReadRegister                              */
+ 180          /*  函数功能 ： 写vs1003寄存器                               */
+ 181          /*  参数     :  寄存器地址             */
+ 182          /*  返回值   :  vs1003的16位寄存器的值                       */
+ 183          /*-----------------------------------------------------------*/
+ 184          unsigned int Mp3ReadRegister(unsigned char addressbyte)
+ 185          {
+ 186   1        unsigned int resultvalue = 0;
+ 187   1        uchar ucReadValue;
+ 188   1      
+ 189   1        Mp3DeselectData();
+ 190   1        Mp3SelectControl();//XCS = 0
+ 191   1        SPIPutChar(VS_READ_COMMAND); //发送读寄存器命令
+ 192   1        SPIPutChar((addressbyte));   //发送寄存器的地址
+ 193   1      
+ 194   1      //  SPIPutChar(0xff);     //发送读时钟
+ 195   1      //  resultvalue = (SPI_RESULT_BYTE) << 8;//读取高8位数据
+ 196   1        ucReadValue = SPI_RecByte();
+ 197   1        resultvalue = ucReadValue<<8;
+ 198   1      //  SPIPutChar(0xff);      //发送读时钟
+ 199   1      //  resultvalue |= (SPI_RESULT_BYTE);  //读取低8位数据
+ 200   1        ucReadValue = SPI_RecByte();
+ 201   1        resultvalue |= ucReadValue;
+ 202   1      
+ 203   1        Mp3DeselectControl();              
+ 204   1        return resultvalue;                 //返回16位寄存器的值
+ 205   1      }
+ 206          
+ 207          /**********************************************************/
+ 208          /*  函数名称 :  Mp3SoftReset                              */
+ 209          /*  函数功能 ： vs1003软件复位                            */
+ 210          /*  参数     :  无                                        */
+ 211          /*  返回值   :  无                                        */
+ 212          /*--------------------------------------------------------*/
+ 213          
+ 214          void Mp3SetVolume1(unsigned char num)  //0xXX
+ 215            {
+ 216   1          Mp3WriteRegister(SPI_VOL,num,num);//设置音量
+ 217   1        }
+ 218          void Mp3SoftReset(void)
+ 219          {
+ 220   1        Mp3WriteRegister (SPI_MODE, 0x08, 0x04); //软件复位
+ 221   1      
+ 222   1        wait(1); //延时1ms
+ 223   1        while (MP3_DREQ == 0); //等待软件复位结束
+ 224   1        Mp3WriteRegister(SPI_CLOCKF, 0x98, 0x00);//设置vs1003的时钟,3倍频
+ 225   1        Mp3WriteRegister (SPI_AUDATA, 0xAC, 0x44); //采样率48k，立体声
+ 226   1        Mp3WriteRegister(SPI_BASS, 0x00, 0x55);//设置重音
+ 227   1        Mp3WriteRegister(SPI_VOL,0x55,0x55);//设置音量
+ 228   1          wait(1); //延时1ms
+ 229   1            
+ 230   1            //向vs1003发送4个字节无效数据，用以启动SPI发送
+ 231   1          Mp3SelectData();
+ 232   1        SPIPutChar(0);
+ 233   1        SPIPutChar(0);
+ 234   1        SPIPutChar(0);
+ 235   1        SPIPutChar(0);
+ 236   1        Mp3DeselectData();
+ 237   1      
+C51 COMPILER V9.60.0.0   1003B                                                             06/16/2023 01:03:55 PAGE 5   
+
+ 238   1      }
+ 239          /**********************************************************/
+ 240          /*  函数名称 :  Mp3Reset                                  */
+ 241          /*  函数功能 ： vs1003硬件复位                            */
+ 242          /*  参数     :  无                                        */
+ 243          /*  返回值   :  无                                        */
+ 244          /*--------------------------------------------------------*/
+ 245          void Mp3Reset(void)
+ 246          { 
+ 247   1        Mp3PutInReset();//xReset = 0   复位vs1003      
+ 248   1        wait(200);//延时100ms
+ 249   1        SPIPutChar(0xff);//发送一个字节的无效数据，启动SPI传输
+ 250   1        Mp3DeselectControl();   //xCS = 1
+ 251   1        Mp3DeselectData();     //xDCS = 1
+ 252   1        Mp3ReleaseFromReset(); //xRESET = 1
+ 253   1        wait(200);            //延时100ms
+ 254   1        while (MP3_DREQ == 0);//等待DREQ为高
+ 255   1      
+ 256   1          wait(200);            //延时100ms
+ 257   1        Mp3SetVolume(50,50);  
+ 258   1          Mp3SoftReset();//vs1003软复位
+ 259   1      }
+ 260          
+ 261          
+ 262          bool CheckVS1003B_DRQ(void)
+ 263          {
+ 264   1        bool bResult;
+ 265   1      
+ 266   1        bResult =MP3_DREQ;
+ 267   1        return(bResult);
+ 268   1      }
+ 269          
+ 270          /***********************************************************/
+ 271          /*  函数名称 :  VsSineTest                                 */
+ 272          /*  函数功能 ： vs1003正弦测试，将该函数放在while循环中，  */
+ 273          /*              如果能持续听到一高一低的声音，证明测试通过 */                            
+ 274          /*  参数     :  无                                         */
+ 275          /*  返回值   :  无                                         */
+ 276          /*---------------------------------------------------------*/
+ 277          void VsSineTest(void)
+ 278          {
+ 279   1        Mp3PutInReset();  //xReset = 0   复位vs1003
+ 280   1        wait(200);        //延时100ms        
+ 281   1        SPIPutChar(0xff);//发送一个字节的无效数据，启动SPI传输
+ 282   1        Mp3DeselectControl();  
+ 283   1        Mp3DeselectData();     
+ 284   1        Mp3ReleaseFromReset(); 
+ 285   1        wait(200);                 
+ 286   1        Mp3SetVolume(50,50);  
+ 287   1      
+ 288   1        Mp3WriteRegister(SPI_MODE,0x08,0x20);//进入vs1003的测试模式
+ 289   1        while (MP3_DREQ == 0);     //等待DREQ为高
+ 290   1        Mp3SelectData();       //xDCS = 1，选择vs1003的数据接口
+ 291   1        
+ 292   1        //向vs1003发送正弦测试命令：0x53 0xef 0x6e n 0x00 0x00 0x00 0x00
+ 293   1        //其中n = 0x24, 设定vs1003所产生的正弦波的频率值，具体计算方法见vs1003的datasheet
+ 294   1          SPIPutChar(0x53);      
+ 295   1        SPIPutChar(0xef);      
+ 296   1        SPIPutChar(0x6e);      
+ 297   1        SPIPutChar(0x24);      
+ 298   1        SPIPutChar(0x00);      
+ 299   1        SPIPutChar(0x00);
+C51 COMPILER V9.60.0.0   1003B                                                             06/16/2023 01:03:55 PAGE 6   
+
+ 300   1        SPIPutChar(0x00);
+ 301   1        SPIPutChar(0x00);
+ 302   1      //  wait(500);
+ 303   1        wait(250);
+ 304   1        wait(250);
+ 305   1        Mp3DeselectData();//程序执行到这里后应该能从耳机听到一个单一频率的声音
+ 306   1        
+ 307   1              //退出正弦测试
+ 308   1        Mp3SelectData();
+ 309   1        SPIPutChar(0x45);
+ 310   1        SPIPutChar(0x78);
+ 311   1        SPIPutChar(0x69);
+ 312   1        SPIPutChar(0x74);
+ 313   1        SPIPutChar(0x00);
+ 314   1        SPIPutChar(0x00);
+ 315   1        SPIPutChar(0x00);
+ 316   1        SPIPutChar(0x00);
+ 317   1      //  wait(500);
+ 318   1        wait(250);
+ 319   1        wait(250);
+ 320   1      
+ 321   1        Mp3DeselectData();
+ 322   1      
+ 323   1              //再次进入正弦测试并设置n值为0x44，即将正弦波的频率设置为另外的值
+ 324   1          Mp3SelectData();       
+ 325   1        SPIPutChar(0x53);      
+ 326   1        SPIPutChar(0xef);      
+ 327   1        SPIPutChar(0x6e);      
+ 328   1        SPIPutChar(0x44);      
+ 329   1        SPIPutChar(0x00);      
+ 330   1        SPIPutChar(0x00);
+ 331   1        SPIPutChar(0x00);
+ 332   1        SPIPutChar(0x00);
+ 333   1      //  wait(500);
+ 334   1        wait(250);
+ 335   1        wait(250);
+ 336   1      
+ 337   1        Mp3DeselectData(); 
+ 338   1      
+ 339   1        //退出正弦测试
+ 340   1        Mp3SelectData();
+ 341   1        SPIPutChar(0x45);
+ 342   1        SPIPutChar(0x78);
+ 343   1        SPIPutChar(0x69);
+ 344   1        SPIPutChar(0x74);
+ 345   1        SPIPutChar(0x00);
+ 346   1        SPIPutChar(0x00);
+ 347   1        SPIPutChar(0x00);
+ 348   1        SPIPutChar(0x00);
+ 349   1      //  wait(500);
+ 350   1        wait(250);
+ 351   1        wait(250);
+ 352   1      
+ 353   1        Mp3DeselectData();
+ 354   1       }
+ 355          
+ 356          void test_1003_PlayMP3File();
+ 357          
+ 358          void TestVS1003B(void)
+ 359          {
+ 360   1      //  Mp3Reset();
+ 361   1      //  VsSineTest();
+C51 COMPILER V9.60.0.0   1003B                                                             06/16/2023 01:03:55 PAGE 7   
+
+ 362   1      //  Mp3SoftReset();
+ 363   1        test_1003_PlayMP3File();
+ 364   1      }
+ 365          
+ 366          //写寄存器，参数，地址和数据
+ 367          void VS1003B_WriteCMD(unsigned char addr, unsigned int dat)
+ 368          {
+ 369   1      /*
+ 370   1        VS1003B_XDCS_H();
+ 371   1        VS1003B_XCS_L();
+ 372   1        VS1003B_WriteByte(0x02);
+ 373   1        //delay_Nus(20);
+ 374   1        VS1003B_WriteByte(addr);
+ 375   1        VS1003B_WriteByte(dat>>8);
+ 376   1        VS1003B_WriteByte(dat);
+ 377   1        //delay_Nus(200);
+ 378   1        VS1003B_XCS_H();
+ 379   1      */
+ 380   1        Mp3WriteRegister(addr,dat>>8,dat);
+ 381   1      }
+ 382          
+ 383          //读寄存器，参数 地址 返回内容
+ 384          unsigned int VS1003B_ReadCMD(unsigned char addr)
+ 385          {
+ 386   1      /*
+ 387   1        unsigned int temp;
+ 388   1        unsigned char temp1;
+ 389   1        VS1003B_XDCS_H();
+ 390   1        VS1003B_XCS_L();
+ 391   1        VS1003B_WriteByte(0x03);
+ 392   1        //delay_Nus(20);
+ 393   1        VS1003B_WriteByte(addr);
+ 394   1        temp=  VS1003B_ReadByte();
+ 395   1        temp=temp<<8;
+ 396   1        temp1= VS1003B_ReadByte();
+ 397   1        temp=temp|temp1;;
+ 398   1        VS1003B_XCS_H();
+ 399   1        return temp;
+ 400   1      */
+ 401   1        return(Mp3ReadRegister(addr));
+ 402   1      }
+ 403          
+ 404          //写数据，音乐数据
+ 405          void VS1003B_WriteDAT(unsigned char dat)
+ 406          {
+ 407   1      //  VS1003B_XDCS_L();
+ 408   1      //  VS1003B_WriteByte(dat);
+ 409   1      //  VS1003B_XDCS_H();
+ 410   1      //  VS1003B_XCS_H();
+ 411   1      
+ 412   1          Mp3SelectData();
+ 413   1        SPIPutChar(dat);
+ 414   1        Mp3DeselectData();
+ 415   1        Mp3DeselectControl();
+ 416   1      
+ 417   1      }
+ 418          
+ 419          //开启环绕声
+ 420          void VS1003B_SetVirtualSurroundOn(void)
+ 421          {
+ 422   1        uchar ucRepeatCount;
+ 423   1        uint uiModeValue;
+C51 COMPILER V9.60.0.0   1003B                                                             06/16/2023 01:03:55 PAGE 8   
+
+ 424   1      
+ 425   1        ucRepeatCount =0;
+ 426   1      
+ 427   1        while(1)//写时钟寄存器
+ 428   1        {
+ 429   2          uiModeValue = VS1003B_ReadCMD(0x00);
+ 430   2          if(uiModeValue & 0x0001)
+ 431   2          {
+ 432   3            break;
+ 433   3          }
+ 434   2          else
+ 435   2          {
+ 436   3            uiModeValue |= 0x0001;
+ 437   3            VS1003B_WriteCMD(0,uiModeValue);
+ 438   3          }
+ 439   2          ucRepeatCount++;
+ 440   2          if(ucRepeatCount++ >10 )break;
+ 441   2        }
+ 442   1      
+ 443   1      }
+ 444          
+ 445          //关闭环绕声
+ 446          void VS1003B_SetVirtualSurroundOff(void)
+ 447          {
+ 448   1        uchar ucRepeatCount;
+ 449   1        uint uiModeValue;
+ 450   1      
+ 451   1        ucRepeatCount =0;
+ 452   1      
+ 453   1        while(1)//写时钟寄存器
+ 454   1        {
+ 455   2          uiModeValue = VS1003B_ReadCMD(0x00);
+ 456   2          if(uiModeValue & 0x0001)
+ 457   2          {
+ 458   3            break;
+ 459   3          }
+ 460   2          else
+ 461   2          {
+ 462   3            uiModeValue |= 0x0001;
+ 463   3            VS1003B_WriteCMD(0,uiModeValue);
+ 464   3          }
+ 465   2          ucRepeatCount++;
+ 466   2          if(ucRepeatCount++ >10 )break;
+ 467   2        }
+ 468   1      
+ 469   1      }
+ 470          
+ 471          //增强重音
+ 472          //入口参数  1.强度0-15
+ 473          //      2.频率0-15 (X10Hz)
+ 474          void VS1003B_SetBassEnhance(uchar ucValue, ucFrequencyID)
+ 475          {
+ 476   1        uchar ucRepeatCount;
+ 477   1        uint uiWriteValue;
+ 478   1        uint uiReadValue; 
+ 479   1      
+ 480   1        ucRepeatCount =0;
+ 481   1      
+ 482   1        uiWriteValue = VS1003B_ReadCMD(0x02);
+ 483   1      
+ 484   1        uiWriteValue &= 0xFF00;
+ 485   1        uiWriteValue |= ucValue<<4;
+C51 COMPILER V9.60.0.0   1003B                                                             06/16/2023 01:03:55 PAGE 9   
+
+ 486   1        uiWriteValue &= (ucFrequencyID & 0x0F);
+ 487   1      
+ 488   1        while(1)//写时钟寄存器
+ 489   1        {
+ 490   2      
+ 491   2          VS1003B_WriteCMD(2,uiWriteValue);
+ 492   2          uiReadValue = VS1003B_ReadCMD(0x02);
+ 493   2          
+ 494   2          if(uiReadValue == uiWriteValue)
+ 495   2          {
+ 496   3            break;
+ 497   3          }
+ 498   2          ucRepeatCount++;
+ 499   2          if(ucRepeatCount++ >10 )break;
+ 500   2        }
+ 501   1      
+ 502   1      }
+ 503          
+ 504          
+ 505           uint uiVolumeCount=99;   //当前音量值
+ 506          
+ 507          //VS1003初始化，0成功 1失败
+ 508          unsigned char VS1003B_Init()
+ 509          {
+ 510   1        unsigned char retry;
+ 511   1      /*
+ 512   1        PORT_INI();
+ 513   1        DDRB|=0xa0;
+ 514   1        VS1003B_DDR &=~(1<<VS1003B_DREQ);
+ 515   1        //delay_Nus(50);
+ 516   1        VS1003B_XCS_H();
+ 517   1        VS1003B_XDCS_H();
+ 518   1        VS1003B_XRESET_L();
+ 519   1        VS1003B_Delay(0xffff);
+ 520   1        VS1003B_XRESET_H();//使能芯片
+ 521   1        VS1003B_SPI_Low();//先以低频操作
+ 522   1        VS1003B_Delay(0xffff);//延时
+ 523   1      */
+ 524   1      Mp3Reset();
+ 525   1      
+ 526   1        retry=0;
+ 527   1        while(VS1003B_ReadCMD(0x00) != 0x0800)//写mode寄存器
+ 528   1        {
+ 529   2          VS1003B_WriteCMD(0x00,0x0800);
+ 530   2          if(retry++ >10 )break;//{PORTB|=_BV(PB1);break;}
+ 531   2        }
+ 532   1        retry=0;
+ 533   1        /*while(VS1003B_ReadCMD(0x02) != 0x75)//写mode寄存器
+ 534   1        {
+ 535   1          VS1003B_WriteCMD(0x02,0x75);
+ 536   1          if(retry++ >10 )break;//{PORTB|=_BV(PB1);break;}
+ 537   1        }*/
+ 538   1        retry=0;
+ 539   1        while(VS1003B_ReadCMD(0x03) != 0x9800)//写时钟寄存器
+ 540   1        {
+ 541   2          VS1003B_WriteCMD(0x03,0x9800);
+ 542   2          if(retry++ >10 )break;
+ 543   2        }
+ 544   1        retry=0;
+ 545   1      //  while(VS1003B_ReadCMD(0x0b) != 0x1111)//设音量
+ 546   1      //  {
+ 547   1      //    VS1003B_WriteCMD(0x0b,0x1111);
+C51 COMPILER V9.60.0.0   1003B                                                             06/16/2023 01:03:55 PAGE 10  
+
+ 548   1      //    if(retry++ >10 )break;
+ 549   1      //  }
+ 550   1        while(VS1003B_ReadCMD(0x0b) != uiVolumeCount)//设音量
+ 551   1        {
+ 552   2          VS1003B_WriteCMD(0x0b,uiVolumeCount);
+ 553   2          if(retry++ >10 )break;
+ 554   2        }
+ 555   1      
+ 556   1        //VS1003B_SPI_High();//提高速度，全速运行
+ 557   1        if(retry > 10)return 1;
+ 558   1        return 0;
+ 559   1      }
+ 560          
+ 561          //VS1003软件复位
+ 562          void VS1003B_SoftReset()
+ 563          {
+ 564   1        VS1003B_WriteCMD(0x00,0x0804);//写复位
+ 565   1      //  VS1003B_Delay(0xffff);//延时，至少1.35ms
+ 566   1        wait(2);
+ 567   1      }
+ 568          
+ 569          void VS1003B_Fill2048Zero()
+ 570          {
+ 571   1        unsigned char i,j;
+ 572   1      
+ 573   1        for(i=0;i<64;i++)
+ 574   1        {
+ 575   2          if(CheckVS1003B_DRQ())
+ 576   2          {
+ 577   3            Mp3SelectData();
+ 578   3      
+ 579   3            for(j=0;j<32;j++)
+ 580   3            {
+ 581   4      
+ 582   4              VS1003B_WriteDAT(0x00);
+ 583   4            }
+ 584   3            Mp3DeselectData();
+ 585   3          }
+ 586   2        }
+ 587   1      }
+ 588          
+ 589          code unsigned char MusicData[] = 
+ 590          {
+ 591            0xff, 0xe3, 0x18, 0xc0, 0x0, 0xc, 0x91, 0xa9, 0x18, 0x1, 0x81, 0x10, 0x0, 0xff, 0xef, 0xfd, 0xc, 
+ 592          0x4b, 0xfc, 0x6d, 0xf, 0xff, 0xee, 0x46, 0x72, 0x7f, 0xff, 0xee, 0x8c, 0x73, 0x37, 0xff, 0xff, 
+ 593          0x9f, 0x62, 0x8e, 0x20, 0xa0, 0x4f, 0xff, 0x33, 0x87, 0x3, 0xe0, 0x3f, 0xff, 0xe8, 0x2, 0x69, 
+ 594          0x47, 0xff, 0xfe, 0x1f, 0x32, 0xfc, 0xca, 0x1f, 0xff, 0xff, 0xf3, 0x46, 0x43, 0x6, 0x95, 0xff, 
+ 595          0x28, 0x5a, 0x0, 0xbf, 0xf0, 0x2b, 0x8b, 0xff, 0xe3, 0x18, 0xc0, 0x8, 0xe, 0x2a, 0x3e, 0xd8, 
+ 596          0x1, 0x8a, 0x50, 0x0, 0x63, 0xc1, 0x53, 0xfc, 0xb1, 0x52, 0x77, 0xff, 0xec, 0x79, 0xe7, 0x9a, 
+ 597          0x70, 0xcf, 0xfd, 0xbf, 0x84, 0x90, 0x23, 0x24, 0x54, 0x6a, 0xff, 0xff, 0xf9, 0x38, 0xfe, 0xee, 
+ 598          0x9f, 0xff, 0xff, 0xfe, 0x34, 0x3c, 0xf6, 0x33, 0x31, 0x87, 0xef, 0xff, 0xff, 0x42, 0x2b, 0xff, 
+ 599          0xff, 0xe4, 0xd1, 0xa8, 0xca, 0xb9, 0x81, 0x40, 0x36, 0x6, 0x28, 0xed, 0x24, 0x6, 0x18, 0xff, 
+ 600          0xe3, 0x18, 0xc0, 0xa, 0xc, 0xd1, 0x46, 0xe8, 0x1, 0xcd, 0x28, 0x0, 0xd0, 0xc5, 0x4, 0x8d, 
+ 601          0x92, 0x49, 0x24, 0x91, 0x65, 0x25, 0xeb, 0x7f, 0xfe, 0xaf, 0xae, 0xad, 0x2a, 0x48, 0x8c, 0x31, 
+ 602          0x8c, 0x6f, 0xff, 0xf9, 0xde, 0x12, 0x11, 0x8, 0x7f, 0xea, 0x40, 0x13, 0xfe, 0xba, 0x8f, 0xff, 
+ 603          0xff, 0xff, 0xff, 0xff, 0x5a, 0xaa, 0xac, 0x68, 0x5, 0x64, 0x60, 0x56, 0x45, 0x4a, 0x83, 0xad, 
+ 604          0x17, 0xfd, 0xfd, 0x42, 0xa7, 0xff, 0x4f, 0xff, 0xe3, 0x18, 0xc0, 0x11, 0x10, 0xa1, 0xe2, 0xe0, 
+ 605          0x0, 0x68, 0x90, 0x70, 0xdb, 0xe4, 0x23, 0x2a, 0x23, 0x1c, 0xff, 0xff, 0xff, 0xd6, 0xae, 0x28, 
+ 606          0x15, 0x18, 0x2f, 0x3, 0x8f, 0x84, 0xa7, 0xdf, 0xff, 0xff, 0x8e, 0x25, 0x54, 0xa5, 0x1f, 0x52, 
+ 607          0x31, 0x29, 0xc8, 0xb8, 0x14, 0x8, 0x1c, 0xa6, 0x91, 0x50, 0x9d, 0x5b, 0xbf, 0xff, 0xff, 0xfd, 
+ 608          0xdf, 0x57, 0xfe, 0xda, 0x10, 0x8a, 0xd4, 0xa0, 0x3a, 0x1b, 0x4, 0xe, 0xc6, 0x3d, 0x97, 0xff, 
+ 609          0xe3, 0x18, 0xc0, 0x9, 0xd, 0x19, 0xea, 0xdc, 0x0, 0x38, 0x4e, 0x70, 0xf7, 0xf4, 0x94, 0xff, 
+C51 COMPILER V9.60.0.0   1003B                                                             06/16/2023 01:03:55 PAGE 11  
+
+ 610          0xff, 0xff, 0x29, 0x70, 0x18, 0xdf, 0xff, 0xff, 0xcd, 0x9e, 0x6b, 0xb, 0xc2, 0x8b, 0x7f, 0xff, 
+ 611          0xd6, 0x6f, 0x4b, 0x9c, 0x22, 0x8e, 0x5, 0x44, 0x93, 0xbf, 0xfe, 0xaf, 0xff, 0xff, 0xff, 0xff, 
+ 612          0xff, 0x16, 0x25, 0xff, 0xd1, 0x32, 0xcd, 0x35, 0x8b, 0xa1, 0x84, 0x38, 0xcd, 0xb7, 0x17, 0x17, 
+ 613          0x7, 0xfe, 0x3f, 0xd1, 0xc8, 0x0, 0x0, 0xff, 0xe3, 0x18, 0xc0, 0xf, 0xb, 0xe9, 0x7a, 0xd8, 
+ 614          0x0, 0x58, 0x84, 0x4c, 0x20, 0x9f, 0xff, 0xfd, 0x3c, 0xa8, 0x60, 0x22, 0x9f, 0xff, 0xff, 0xf2, 
+ 615          0xb1, 0x8d, 0x1c, 0xe0, 0x1, 0xcf, 0xff, 0xd2, 0xdf, 0xff, 0xf7, 0x56, 0xff, 0xff, 0xff, 0xff, 
+ 616          0xff, 0xff, 0xff, 0xeb, 0x4a, 0xda, 0x54, 0x4, 0x6e, 0x90, 0x2a, 0x8e, 0xa5, 0xfb, 0xaf, 0xfa, 
+ 617          0x78, 0x8f, 0xd4, 0xe1, 0x60, 0xf8, 0x14, 0x87, 0xa4, 0xf5, 0xcc, 0xb1, 0x93, 0x7b, 0xc7, 0xff, 
+ 618          0xe3, 0x18, 0xc0, 0x1a, 0x13, 0x29, 0x7e, 0xcc, 0x0, 0x5a, 0xc, 0x4c, 0xb2, 0x17, 0xfd, 0xc9, 
+ 619          0xd3, 0x35, 0x24, 0xdb, 0x25, 0xad, 0x9f, 0x7e, 0x6c, 0x94, 0x2c, 0xc, 0xe9, 0xd0, 0x49, 0x3d, 
+ 620          0x3d, 0xdf, 0x1f, 0xfd, 0x6d, 0xf4, 0x71, 0x2d, 0x57, 0xad, 0x64, 0xe, 0x2c, 0xf7, 0x5a, 0xbf, 
+ 621          0xfd, 0xb7, 0x8b, 0x9f, 0xd7, 0xff, 0xb3, 0xff, 0xff, 0xff, 0xd7, 0x4b, 0xbf, 0xff, 0x5d, 0xff, 
+ 622          0xfc, 0x4f, 0xff, 0x0, 0x27, 0x26, 0x0, 0xff, 0xe3, 0x18, 0xc0, 0x8, 0xd, 0xb9, 0x46, 0xe5, 
+ 623          0x94, 0x49, 0x44, 0x4c, 0xd3, 0xec, 0xb1, 0xfc, 0x4b, 0x7d, 0xc7, 0xff, 0xe4, 0x7e, 0x8e, 0x6e, 
+ 624          0xab, 0xab, 0xb3, 0x41, 0xff, 0xff, 0x4c, 0xe7, 0x13, 0xff, 0xf5, 0xaa, 0x2, 0x81, 0x38, 0xaf, 
+ 625          0xf1, 0xce, 0xb4, 0x55, 0x8e, 0x2b, 0xaf, 0xb7, 0x58, 0x89, 0x3f, 0xf9, 0x27, 0xff, 0xff, 0xdc, 
+ 626          0xa7, 0xfe, 0x2a, 0xa, 0x5f, 0xfc, 0xf6, 0x3a, 0x98, 0x42, 0x9a, 0x5f, 0x25, 0xec, 0xad, 0xff, 
+ 627          0xe3, 0x18, 0xc0, 0xc, 0xc, 0x59, 0x4a, 0xc4, 0x0, 0x10, 0xcc, 0x4c, 0xad, 0xe9, 0x8a, 0x63, 
+ 628          0x96, 0x4c, 0xa4, 0x6c, 0x24, 0x6a, 0x38, 0x6c, 0xd1, 0x46, 0xec, 0x5c, 0x6d, 0x3b, 0xeb, 0x7f, 
+ 629          0x33, 0x17, 0x0, 0x68, 0x59, 0x49, 0xa3, 0x67, 0x5f, 0xb6, 0x6f, 0x58, 0x48, 0xf0, 0xf7, 0x3d, 
+ 630          0x42, 0xd5, 0x55, 0x37, 0xae, 0x63, 0x8e, 0x9a, 0x69, 0x56, 0x14, 0x1, 0x11, 0x20, 0xba, 0xfc, 
+ 631          0xe4, 0xab, 0xda, 0xc6, 0xa3, 0xad, 0xbd, 0xff, 0xe3, 0x18, 0xc0, 0x15, 0xc, 0xe1, 0xb6, 0xb4, 
+ 632          0x1, 0x47, 0x18, 0x0, 0x3a, 0x67, 0x98, 0xab, 0xeb, 0x7d, 0x4d, 0xaf, 0xe, 0xed, 0x2b, 0xc2, 
+ 633          0xf4, 0x6, 0xdb, 0x69, 0x48, 0x97, 0xce, 0x9f, 0xcc, 0xca, 0x6e, 0xc8, 0xe0, 0x84, 0xbb, 0x6d, 
+ 634          0xdd, 0xf9, 0x65, 0xff, 0xef, 0x47, 0x9e, 0x79, 0x31, 0xb8, 0x4a, 0x13, 0x32, 0xf8, 0xdc, 0x89, 
+ 635          0x72, 0x3, 0x83, 0x63, 0x8c, 0xfc, 0x5f, 0xce, 0xd1, 0xca, 0xdf, 0xf2, 0x34, 0x8d, 0x39, 0xff, 
+ 636          0xe3, 0x18, 0xc0, 0x1c, 0x14, 0x2, 0x32, 0xe8, 0x1, 0x87, 0x28, 0x0, 0xc0, 0x49, 0x8a, 0x53, 
+ 637          0x19, 0xbf, 0xff, 0x66, 0x90, 0x95, 0x47, 0x6c, 0xb5, 0x4f, 0xff, 0x42, 0x10, 0x5c, 0xee, 0x46, 
+ 638          0x62, 0x29, 0xd9, 0x55, 0x4a, 0x51, 0x21, 0xef, 0x2, 0x7f, 0x77, 0xe0, 0xad, 0x21, 0x85, 0xa0, 
+ 639          0x5f, 0xff, 0xf7, 0x19, 0xcc, 0xa6, 0xf5, 0x84, 0x0, 0xae, 0xd9, 0xff, 0xff, 0x66, 0x12, 0x14, 
+ 640          0xe8, 0xed, 0xfb, 0x89, 0x81, 0xd1, 0xce, 0xff, 0xe3, 0x18, 0xc0, 0x7, 0xc, 0x80, 0xe6, 0xe4, 
+ 641          0x1, 0xc7, 0x10, 0x0, 0xe8, 0xfd, 0xd1, 0xe, 0x65, 0x5a, 0xf5, 0xf6, 0xff, 0xb9, 0x30, 0x44, 
+ 642          0x5e, 0x1c, 0x55, 0x69, 0xbf, 0xf0, 0x98, 0x35, 0xff, 0x76, 0xa7, 0x7f, 0xd6, 0xc7, 0x20, 0xf7, 
+ 643          0xfc, 0xb0, 0xba, 0xad, 0xab, 0xff, 0x57, 0x6b, 0x3c, 0xd7, 0xd1, 0xb7, 0xf7, 0xdd, 0xe9, 0xe4, 
+ 644          0x27, 0xfc, 0x50, 0xf3, 0x7e, 0xba, 0x0, 0x69, 0xfd, 0x5b, 0xfd, 0x15, 0x90, 0xe3, 0x54, 0xff, 
+ 645          0xe3, 0x18, 0xc0, 0x10, 0xb, 0xc0, 0xfe, 0xe0, 0x0, 0x9, 0x4e, 0x48, 0x45, 0x22, 0x3a, 0x81, 
+ 646          0x41, 0x87, 0xfa, 0x50, 0xe5, 0x29, 0xfc, 0x2d, 0xff, 0xee, 0x21, 0xff, 0xff, 0xe7, 0xba, 0x90, 
+ 647          0xba, 0x88, 0x87, 0x82, 0xa7, 0xff, 0xfe, 0xff, 0xff, 0xbd, 0x8, 0x0, 0x30, 0x3f, 0xc3, 0xc0, 
+ 648          0x3f, 0xff, 0xff, 0xfe, 0x22, 0xe, 0xbf, 0xff, 0xff, 0xfa, 0x82, 0x73, 0x3f, 0xfd, 0x3f, 0xff, 
+ 649          0x94, 0x22, 0xab, 0x7f, 0xfd, 0x7f, 0xef, 0xff, 0xe3, 0x18, 0xc0, 0x1c, 0xd, 0x1a, 0xd6, 0xe9, 
+ 650          0x95, 0x45, 0x10, 0x0, 0x8b, 0x52, 0xb7, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xe4, 0x61, 0xd4, 
+ 651          0xdf, 0xff, 0x83, 0xc7, 0x7f, 0xfd, 0xe0, 0xf0, 0x4f, 0xff, 0xe9, 0xf3, 0x2a, 0xff, 0xff, 0xeb, 
+ 652          0xd3, 0x42, 0x66, 0x29, 0xc9, 0x2, 0x60, 0xc1, 0x26, 0x62, 0x3c, 0x8d, 0xb6, 0x77, 0xdb, 0xed, 
+ 653          0xb2, 0x9f, 0x15, 0xb, 0x3f, 0x1f, 0x2d, 0xf6, 0x66, 0x4c, 0xcf, 0x13, 0x9e, 0xff, 0xca, 0xff, 
+ 654          0xe3, 0x18, 0xc0, 0x22, 0x15, 0xbb, 0xc6, 0xc8, 0x1, 0x8d, 0x38, 0x0, 0x9c, 0x5f, 0x5d, 0xa8, 
+ 655          0x89, 0x98, 0x9d, 0x5f, 0xfd, 0xf7, 0xf3, 0xf3, 0xcf, 0xfb, 0x73, 0xa6, 0x17, 0x6e, 0xcf, 0x13, 
+ 656          0x0, 0xe0, 0x9c, 0x9b, 0xe, 0x39, 0xbd, 0x74, 0x2a, 0xe8, 0xbf, 0xfd, 0xff, 0x9c, 0x22, 0xa1, 
+ 657          0xed, 0xea, 0xa2, 0x9f, 0xd7, 0x4f, 0xd7, 0xff, 0xff, 0x93, 0x3c, 0xe3, 0x56, 0xe1, 0xd6, 0xdd, 
+ 658          0xd7, 0xff, 0xff, 0xe9, 0xe7, 0x32, 0x84, 0xff, 0xe3, 0x18, 0xc0, 0x6, 0xb, 0xb1, 0x42, 0xd8, 
+ 659          };
+ 660          
+ 661          void test_1003_PlayMP3File() 
+ 662          {
+ 663   1         unsigned int data_pointer;unsigned char i;
+ 664   1        unsigned int uiCount;
+ 665   1      
+ 666   1        uiCount = sizeof(MusicData);
+ 667   1        data_pointer=0; 
+ 668   1        VS1003B_SoftReset();
+ 669   1          while(uiCount>0)
+ 670   1          { 
+ 671   2           if(CheckVS1003B_DRQ())
+C51 COMPILER V9.60.0.0   1003B                                                             06/16/2023 01:03:55 PAGE 12  
+
+ 672   2              {
+ 673   3              for(i=0;i<32;i++)
+ 674   3                  {
+ 675   4                VS1003B_WriteDAT(MusicData[data_pointer]);
+ 676   4                data_pointer++;
+ 677   4                  }
+ 678   3            uiCount -= 32;
+ 679   3               }
+ 680   2          }
+ 681   1        VS1003B_Fill2048Zero();
+ 682   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1147    ----
+   CONSTANT SIZE    =   1089    ----
+   XDATA SIZE       =      2      26
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----       1
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)
